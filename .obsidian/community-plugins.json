@@ -4,5 +4,6 @@
   "codeblock-customizer",
   "shiki-highlighter",
   "obsidian-local-rest-api",
-  "claudian"
+  "claudian",
+  "obsidian-git"
 ]
