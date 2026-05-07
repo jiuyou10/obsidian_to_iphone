@@ -1,0 +1,27 @@
+# Obsidian
+.obsidian/workspace
+.obsidian/workspace.json
+.obsidian/cache
+.obsidian/plugins/dataview
+.obsidian/plugins/obsidian-git
+.obsidian/plugins/obsidian-git/data.json
+.trash/
+
+# Claude session data (not vault content)
+.claude/
+.claudian/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temp files
+*.base

@@ -1,0 +1,169 @@
+/* === LeetCode 刷题总结仪表板专属样式 === */
+
+/* 笔记不受可读行宽限制,表格铺满 */
+.leetcode-dashboard.markdown-preview-view .markdown-preview-sizer,
+.leetcode-dashboard .markdown-preview-sizer,
+.leetcode-dashboard .markdown-source-view .cm-sizer,
+.leetcode-dashboard .markdown-reading-view .markdown-preview-sizer {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+/* 表格铺满,自动布局让题目/关键词吃剩下空间,固定列按 px */
+.leetcode-dashboard table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: auto !important;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+/* 行/格基础 */
+.leetcode-dashboard table tr {
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.leetcode-dashboard table td,
+.leetcode-dashboard table th {
+  padding: 7px 8px !important;
+  vertical-align: middle !important;
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+}
+
+/* 表头 */
+.leetcode-dashboard table th {
+  background: var(--background-secondary);
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 2px solid var(--background-modifier-border-hover);
+  white-space: nowrap;
+  font-size: 11px !important;
+}
+
+.leetcode-dashboard table tbody tr:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* === 列宽分配 === */
+
+/* 题目列:吃剩下空间,允许换行,字号 11px */
+.leetcode-dashboard table th:nth-child(1),
+.leetcode-dashboard table td:nth-child(1) {
+  font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+}
+.leetcode-dashboard table td:nth-child(1) a {
+  font-size: 11px !important;
+}
+
+/* 关键词列:吃剩下空间,允许换行 */
+.leetcode-dashboard table th:nth-child(2),
+.leetcode-dashboard table td:nth-child(2) {
+  color: var(--text-muted);
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* 分类列:固定但有空间放 2 个 tag */
+.leetcode-dashboard table th:nth-child(3),
+.leetcode-dashboard table td:nth-child(3) {
+  width: 130px !important;
+  white-space: normal;
+}
+.leetcode-dashboard table td:nth-child(3) span {
+  display: inline-block !important;
+  white-space: nowrap !important;
+  margin: 0 3px 2px 0 !important;
+  font-size: 10px !important;
+  padding: 1px 7px !important;
+}
+
+/* 难度列:足够放下 "1500" 或 "中等" */
+.leetcode-dashboard table th:nth-child(4),
+.leetcode-dashboard table td:nth-child(4) {
+  width: 55px !important;
+  text-align: center !important;
+  white-space: nowrap;
+}
+.leetcode-dashboard table td:nth-child(4) span {
+  font-size: 11px !important;
+}
+
+/* 熟练度列:5 颗星挤紧 */
+.leetcode-dashboard table th:nth-child(5),
+.leetcode-dashboard table td:nth-child(5) {
+  width: 65px !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  font-size: 10px !important;
+  letter-spacing: -2px !important;
+  padding: 7px 4px !important;
+}
+
+/* 耗时列:容纳 "1h15m" */
+.leetcode-dashboard table th:nth-child(6),
+.leetcode-dashboard table td:nth-child(6) {
+  width: 55px !important;
+  text-align: center !important;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 日期列:容纳 "2026-05-03" */
+.leetcode-dashboard table th:nth-child(7),
+.leetcode-dashboard table td:nth-child(7) {
+  width: 85px !important;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* 链接 */
+.leetcode-dashboard table a.internal-link,
+.leetcode-dashboard table a.external-link {
+  text-decoration: none;
+  color: var(--text-normal);
+}
+.leetcode-dashboard table a:hover {
+  color: var(--text-accent);
+  text-decoration: underline;
+}
+
+/* === 单题笔记代码块美化 === */
+.markdown-rendered pre[class*="language-"] {
+  border-radius: 8px !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  padding: 14px 16px !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, ui-monospace, monospace !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+  margin: 12px 0 !important;
+}
+
+.markdown-rendered pre button.copy-code-button {
+  opacity: 0.4;
+  transition: opacity 0.15s;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 4px;
+}
+.markdown-rendered pre:hover button.copy-code-button {
+  opacity: 1;
+}
+
+/* 行内 code */
+.markdown-rendered :not(pre) > code {
+  background: var(--background-secondary) !important;
+  color: var(--text-accent) !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  font-size: 0.92em !important;
+  font-family: "JetBrains Mono", "SF Mono", Consolas, monospace !important;
+  border: 1px solid var(--background-modifier-border) !important;
+}
