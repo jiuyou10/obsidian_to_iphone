@@ -848,7 +848,22 @@ lock.unlock();
 主节点宕机 → 写命令丢失
 ```
 
-**解决**：`WAIT` 命令（阻塞等待至少 N 个从节点确认）或部署时避免主节点压力过大。
+**解决**：配置 `min-replicas-max-lag`（旧版名 `min-slaves-max-lag`），限制主从延迟过大时拒绝写入。
+
+```conf
+min-replicas-to-write 1    # 至少有 1 个从节点连接
+min-replicas-max-lag 10    # 所有从节点延迟超过 10 秒 → 主节点拒绝写入
+```
+
+```
+主从延迟 > 10s → 主节点拒绝新写入
+                      ↓
+客户端发现 master 不可写 → 降级处理：
+  ├─ 将数据暂时写入本地缓存/磁盘，等 master 恢复后重写
+  └─ 或写入 Kafka 消息队列，等 master 恢复后消费回放
+```
+
+这样即使主节点宕机，丢失的数据也被控制在 `min-replicas-max-lag` 以内（最多 10 秒的未复制数据）。
 
 **2. 集群脑裂（Split-Brain）数据丢失**
 
