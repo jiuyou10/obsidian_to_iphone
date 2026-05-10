@@ -39,7 +39,63 @@ String 和 StringBuilder、StringBuffer 的区别？
 #### [如何保证 String 不可变？
 ### [37.intern 方法有什么作用？
 ### [.Integer a= 127，Integer b = 127；Integer c= 128，Integer d = 128；相等吗?大部分的数据操作都集中在值比较小的范围，因此 Integer 搞了个缓存池，默认范围是 -128 到 127
-### [String 怎么转成 Integer 的？原理？](https://javabetter.cn/sidebar/sanfene/javase.html#_39-string-%E6%80%8E%E4%B9%88%E8%BD%AC%E6%88%90-integer-%E7%9A%84-%E5%8E%9F%E7%90%86)
+### [String 怎么转成 Integer 的？原理？
+### [Object 类的常见方法？
+Java 中的异常处理
+如果 catch 块抛出一个异常，而 finally 块中也抛出异常，那么最终抛出的将是 finally 块中的异常。catch 块中的异常会被丢弃，而 finally 块中的异常会覆盖并向上传递。虽然 catch 和 finally 中的异常不能同时抛出，但可以手动捕获 finally 块中的异常，并将 catch 块中的异常保留下来，避免被覆盖。常见的做法是使用一个变量临时存储 catch 中的异常，然后在 finally 中处理该异常
+public class TryDemo {
+    public static void main(String[] args) {
+        System.out.println(test());
+    }
+    public static int test() {
+        try {
+            return 1;
+        } catch (Exception e) {
+            return 2;
+        } finally {
+            System.out.print("3");
+        }
+    }
+}
+public class TryDemo {
+    public static void main(String[] args) {
+        System.out.println(test1());
+    }
+    public static int test1() {
+        try {
+            return 2;
+        } finally {
+            return 3;
+        }
+    }
+}
+public class TryDemo {
+    public static void main(String[] args) {
+        System.out.println(test1());
+    }
+    public static int test1() {
+        int i = 0;
+        try {
+            i = 2;
+            return i;
+        } finally {
+            i = 3;
+        }
+    }
+}
+### [44.Java 中 IO 流分为几种?](https://javabetter.cn/sidebar/sanfene/javase.html#_44-java-%E4%B8%AD-io-%E6%B5%81%E5%88%86%E4%B8%BA%E5%87%A0%E7%A7%8D)
+### [BIO、NIO、AIO 之间的区别？](https://javabetter.cn/sidebar/sanfene/javase.html#_46-%F0%9F%8C%9Fbio%E3%80%81nio%E3%80%81aio-%E4%B9%8B%E9%97%B4%E7%9A%84%E5%8C%BA%E5%88%AB)
+序列化（Serialization）是指将对象转换为字节流的过程，以便能够将该对象保存到文件、数据库，或者进行网络传输。
+
+反序列化（Deserialization）就是将字节流转换回对象的过程，以便构建原始对象。
+Socket 是网络通信的基础，表示两台设备之间通信的一个端点。Socket 通常用于建立 TCP 或 UDP 连接，实现进程间的网络通信。
+RPC是一种协议，允许程序调用位于远程服务器上的方法，就像调用本地方法一样。RPC 通常基于 Socket 通信实现。
+泛型主要用于提高代码的类型安全，它允许在定义类、接口和方法时使用类型参数，这样可以在编译时检查类型一致性，避免不必要的类型转换和类型错误。
+所谓的泛型擦除，官方名叫“类型擦除”。
+
+Java 的泛型是伪泛型，这是因为 Java 在编译期间，所有的类型信息都会被擦掉。
+
+也就是说，在运行的时候是没有泛型的。
 
 PS:这道题印象中在一些面经中出场过几次。
 
