@@ -382,7 +382,27 @@ public static int test1() {
 **finally 不执行的两种特殊情况**：
 1. 程序所在的线程死亡
 2. 关闭 CPU（如 `System.exit()`）
+### Error 与 Exception 的区别
 
+**Throwable** 有两子类：
+- **Exception**：程序可恢复的异常，应被 try-catch 处理
+- **Error**：严重的系统级问题，程序通常不应捕获
+
+**常见 Error**：
+| Error | 说明 |
+|---|---|
+| `StackOverflowError` | 递归过深，栈空间耗尽 |
+| `OutOfMemoryError` | 堆/元空间/直接内存耗尽 |
+| `NoClassDefFoundError` | JVM 找不到类的定义 |
+| `UnsatisfiedLinkError` | native 方法加载失败 |
+
+**finally 遇到 Error**：
+- Error 可以被 try-catch 捕获，此时 finally 仍然会执行
+- 但某些 Error 会导致 finally **不执行**（属于第 3 种特殊情况）：
+  - `StackOverflowError`：栈已满，finally 块来不及运行
+  - `OutOfMemoryError`：连 finally 中的代码都无法分配内存
+
+**最佳实践**：不要捕获 Error。Error 意味着 JVM 已处于不可恢复状态，catch 也无法让程序恢复正常，应让其向上传播导致 JVM 退出。
 ### Checked vs Unchecked 异常
 
 - **Unchecked Exception**（如 NullPointerException）：本质是代码 Bug，最好让 Bug 暴露出来去修复代码，而不是用 try-catch 掩盖
