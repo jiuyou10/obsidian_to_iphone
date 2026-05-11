@@ -294,8 +294,50 @@ String b = new String("ab");  // new → 堆上新对象，常量池有则复用
 
 ### String 的特点（不可变性）
 
-- String 类的对象是**不可变**的。一旦一个 String 对象被创建，它所包含的字符串内容是不可改变的
-- 每次对 String 对象进行修改操作（拼接、替换等）实际上都会生成一个新的 String 对象，而不是修改原有对象
+String 类的对象是**不可变**的，一旦创建，内容不可改变。
+
+#### 如何实现不可变？
+
+```java
+public final class String
+    implements java.io.Serializable, Comparable<String>, CharSequence {
+    private final byte[] value;  // JDK 9+ 用 byte[]（JDK 8 是 char[]）
+    private final int coder;     // 编码标识（LATIN1 / UTF16）
+    // ...
+}
+```
+
+- **类声明为 `final`**：防止子类破坏不可变性
+- **底层数组 `private final`**：引用不可变 + 私有不暴露，外部无法修改
+- **没有提供 setter / 修改方法**：所有看似修改的方法（`concat()`、`replace()`、`substring()`）都返回新 String 对象
+- **防御性拷贝**：构造方法不对外来数组做引用共享（JDK 9 之前 `new String(char[])` 会拷贝数组）
+
+> **注意**：通过反射可以暴力修改 `value` 数组的内容（`Field.setAccessible(true)`），但这是运行时破坏约定，不属于语言层面的不可变保障。
+
+#### 为什么设计成不可变？
+
+| 原因 | 说明 |
+|---|---|
+| **字符串常量池** | 多个引用共享常量池中同一个 String 对象，若可变则一个引用修改会波及所有引用 |
+| **线程安全** | 不可变对象天然线程安全，无需同步即可在多线程间共享 |
+| **HashCode 缓存** | String 的 `hashCode` 在首次调用后缓存到 `private int hash` 字段，若可变则缓存失效 |
+| **类加载安全** | 类名、包名、路径等关键信息以 String 传递，可变会引入安全漏洞 |
+| **网络 / 数据库安全** | 连接 URL、用户名密码等若可变，攻击者可篡改 |
+
+#### 如果 String 可变会怎样？
+
+```java
+// 假设 String 可变
+String s = "abc";
+HashMap<String, Integer> map = new HashMap<>();
+map.put(s, 123);
+s.set(1, 'd');  // 修改后 hashCode 变了
+map.get("abc"); // → null（hashCode 不匹配）
+map.get("adc"); // → 123（但"adc"在桶里不存在）
+```
+
+- HashMap 中作为 key 的 String 修改后无法正确索引，导致内存泄漏
+- 常量池中所有引用 String 的变量都会受影响
 
 ### StringBuilder
 
