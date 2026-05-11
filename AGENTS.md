@@ -3,6 +3,8 @@
 ## 仓库结构
 - `00-Inbox/` 草稿和待整理的笔记
 - `10-Notes/` 永久笔记(原子化,一笔记一概念)
+  - `10-Notes/java八股/` Java 技术八股笔记（JavaSE / JVM / MySQL / Redis / 并发等）
+    - 每个主题一个 `.md` 文件，文件名小写，如 `javase.md`、`jvm.md`
 - `20-Topics/` 主题索引(MOC, Map of Content)
 - `30-Sources/` 文献/资料出处
 - `99-Archive/` 归档
