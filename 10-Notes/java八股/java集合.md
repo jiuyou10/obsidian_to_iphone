@@ -153,6 +153,7 @@ get(key):
 #### HashMap 是否线程安全
 
 `HashMap` **不是线程安全的**。多线程同时 `put()`、`remove()` 或 `resize()` 时，可能出现数据覆盖、数据丢失、读到脏数据等问题。JDK 8 虽然改了尾插法，降低了 JDK 7 并发扩容链表成环的风险，但并不代表它线程安全；并发场景应使用 `ConcurrentHashMap`。
+
 ### ConcurrentHashMap
 
 | 版本 | 锁粒度 | 实现方式 |
