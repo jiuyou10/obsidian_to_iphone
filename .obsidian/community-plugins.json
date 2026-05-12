@@ -1,9 +1,10 @@
 [
-  "dataview",
-  "css-snippets",
   "codeblock-customizer",
   "shiki-highlighter",
   "obsidian-local-rest-api",
+  "code-styler",
   "claudian",
+  "css-snippets",
+  "dataview",
   "obsidian-git"
 ]

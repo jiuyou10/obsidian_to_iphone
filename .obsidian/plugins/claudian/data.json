@@ -4,17 +4,8 @@
       {
         "tabId": "tab-1778232077517-cwjbges",
         "conversationId": "conv-1778232101032-a7fia7a3d"
-      },
-      {
-        "draftModel": "deepseek-chat",
-        "tabId": "tab-1778431839049-l5dvykn",
-        "conversationId": null
-      },
-      {
-        "tabId": "tab-1778431843314-wdfdb4e",
-        "conversationId": "conv-1778431855454-98ezkj627"
       }
     ],
-    "activeTabId": "tab-1778431843314-wdfdb4e"
+    "activeTabId": "tab-1778232077517-cwjbges"
   }
 }
