@@ -622,12 +622,12 @@ synchronized (lock) {
 
 它的 key 和 value 都不允许为 `null`。因为很多操作直接锁整张表，所以并发性能较差；相比之下，`ConcurrentHashMap` 通过更细粒度的并发控制提升了吞吐。
 
-| 对比 | `Hashtable` | `ConcurrentHashMap` |
-|---|---|---|
-| 锁粒度 | 整张表/方法级 | 更细粒度，JDK 8 主要是 CAS + 桶级锁 |
-| 并发性能 | 低 | 高 |
-| 是否允许 `null` | 不允许 | 不允许 |
-| 新代码推荐 | 不推荐 | 推荐 |
+| 对比          | `Hashtable` | `ConcurrentHashMap`      |
+| ----------- | ----------- | ------------------------ |
+| 锁粒度         | 整张表/方法级     | 更细粒度，JDK 8 主要是 CAS + 桶级锁 |
+| 并发性能        | 低           | 高                        |
+| 是否允许 `null` | 不允许         | 不允许                      |
+| 新代码推荐       | 不推荐         | 推荐                       |
 
 **为什么需要它**：它解决了早期 `HashMap` 多线程不安全的问题。
 
@@ -637,22 +637,85 @@ synchronized (lock) {
 
 ### `ThreadLocal` 原理、继承与问题
 
-**一句话定义**：`ThreadLocal` 是线程隔离变量，同一个 `ThreadLocal` 在不同线程中保存不同副本。
+**一句话定义**：`ThreadLocal` 是给每个线程单独保存一份变量副本的工具，用来避免多个线程共享同一个变量。
 
-值实际存在线程对象的 `ThreadLocalMap` 中，key 是 `ThreadLocal` 的弱引用，value 是业务对象。`ThreadLocalMap` 不是 `HashMap`，它是 `ThreadLocal` 自己实现的开放寻址结构。普通 `ThreadLocal` 不能被子线程继承；如果要继承父线程值，可以用 `InheritableThreadLocal`，但在线程池里要特别小心线程复用导致的脏数据。
+它的作用不是“解决共享变量的并发修改”，而是直接让变量不共享。比如用户信息、traceId、事务上下文这类数据，只应该属于当前请求对应的线程，就可以放进 `ThreadLocal`。这样同一个 `ThreadLocal` 对象，在 A 线程里取到的是 A 的值，在 B 线程里取到的是 B 的值。
+
+#### 为什么能保证线程隔离
+
+关键点是：值不是存在 `ThreadLocal` 对象里面，而是存在**当前线程自己的 `ThreadLocalMap`** 里面。
+
+```text
+Thread A
+ └── ThreadLocalMap
+      └── key: threadLocal -> value: A 的 userId
+
+Thread B
+ └── ThreadLocalMap
+      └── key: threadLocal -> value: B 的 userId
+```
+
+也就是说，`ThreadLocal` 更像一把钥匙。每个线程都有自己的柜子，也就是 `ThreadLocalMap`；同一把钥匙去不同线程的柜子里开，拿到的是各自线程保存的值。所以线程之间不会读到同一份 value，自然就实现了隔离。
+
+#### 底层实现
+
+每个 `Thread` 对象内部都有一个 `ThreadLocal.ThreadLocalMap` 类型的成员变量。调用 `threadLocal.set(value)` 时，大致流程是：
+
+```text
+1. 获取当前线程 Thread.currentThread()
+2. 取出当前线程内部的 ThreadLocalMap
+3. 以当前 ThreadLocal 对象作为 key
+4. 把 value 存到当前线程自己的 map 里
+```
+
+简化理解：
 
 ```java
+thread.threadLocals.set(this, value);
+```
+
+这里的 `this` 就是当前 `ThreadLocal` 对象。
+
+#### 和 HashMap 的区别
+
+`ThreadLocalMap` 不是普通 `HashMap`，只是思想上也用了 key-value 存储。
+
+| 对比     | `HashMap`       | `ThreadLocalMap`     |
+| ------ | --------------- | -------------------- |
+| 所属位置   | 普通对象，谁都可以持有引用   | 每个 `Thread` 对象内部各有一份 |
+| key    | 普通强引用 key       | `ThreadLocal` 的弱引用   |
+| 冲突处理   | 数组 + 链表/红黑树     | 开放寻址，冲突后向后找空位        |
+| 线程隔离来源 | 本身不提供线程隔离       | 每个线程有自己的 map，所以隔离    |
+| 使用目的   | 通用 key-value 容器 | 保存当前线程的局部变量          |
+
+所以不要理解成“`ThreadLocal` 里面有一个全局 HashMap，key 是线程”。实际更接近：**每个线程自己带一个 Map，`ThreadLocal` 只是访问这个 Map 的 key**。
+
+#### 子线程能不能继承
+
+普通 `ThreadLocal` 不能被子线程继承。父线程里设置了值，子线程默认拿不到。
+
+如果希望子线程能拿到父线程的值，可以用 `InheritableThreadLocal`。但在线程池里要小心，因为线程会复用，所谓“父子线程关系”不一定符合一次请求的直觉，容易出现旧值残留。
+
+```java
+private static final ThreadLocal<String> LOCAL = new ThreadLocal<>();
+
 LOCAL.set(userId);
 try {
-    // 使用上下文
+    String currentUser = LOCAL.get();
 } finally {
     LOCAL.remove();
 }
 ```
 
-**为什么需要它**：有些上下文只属于当前线程，比如用户 ID、traceId、事务上下文。
+#### 会出现什么问题
 
-**什么时候用**：保存线程上下文时使用；在线程池中用完必须 `remove()`，否则可能内存泄漏或串数据。
+最大的问题是**内存泄漏**和**脏数据**。
+
+`ThreadLocalMap` 的 key 是弱引用，如果 `ThreadLocal` 对象没有外部强引用，key 可能被 GC 回收成 `null`；但 value 还在当前线程的 `ThreadLocalMap` 里。在线程池中，线程长期不销毁，value 就可能一直留着，形成内存泄漏。脏数据则是上一个任务设置的值没有清理，下一个任务复用同一线程时读到了旧值。
+
+**为什么需要它**：它适合保存“当前线程独有”的上下文，让方法之间不用层层传参，也避免多个线程共享同一变量。
+
+**什么时候用**：用户上下文、traceId、事务上下文可以用；在线程池里用完必须放在 `finally` 中 `remove()`，不要把大对象长期放进 `ThreadLocal`。
 
 ---
 
@@ -699,15 +762,13 @@ latch.await();
 
 `Semaphore` 用许可证控制并发数；`Exchanger` 让两个线程交换数据；`CountDownLatch` 让线程等待倒计时归零；`CyclicBarrier` 让一组线程互相等待到齐后继续，并且可重复使用；`Phaser` 更灵活，支持多阶段和动态注册参与者。
 
-| 工具 | 作用 | 是否可复用 |
-|---|---|---|
-| `Semaphore` | 控制同时访问资源的线程数 | 是 |
-| `Exchanger` | 两个线程交换数据 | 是 |
-| `CountDownLatch` | 等待计数归零 | 否 |
-| `CyclicBarrier` | 一组线程到齐再继续 | 是 |
-| `Phaser` | 多阶段任务协调 | 是 |
-
-参考：[Semaphore、Exchanger、CountDownLatch、CyclicBarrier、Phaser](https://javabetter.cn/thread/CountDownLatch.html)
+| 工具               | 作用           | 是否可复用 |
+| ---------------- | ------------ | ----- |
+| `Semaphore`      | 控制同时访问资源的线程数 | 是     |
+| `Exchanger`      | 两个线程交换数据     | 是     |
+| `CountDownLatch` | 等待计数归零       | 否     |
+| `CyclicBarrier`  | 一组线程到齐再继续    | 是     |
+| `Phaser`         | 多阶段任务协调      | 是     |
 
 **为什么需要它**：线程协作不应该全靠手写 `wait/notify`，工具类更安全、表达更清楚。
 
@@ -719,18 +780,46 @@ latch.await();
 
 **一句话定义**：`ConcurrentHashMap` 是线程安全的哈希表，通过更细粒度的并发控制提高读写性能。
 
-JDK 7 主要是 **Segment 分段锁**，每个 Segment 类似一个小 HashMap，写操作锁住某个段。JDK 8 取消 Segment，结构接近 `HashMap` 的数组 + 链表 + 红黑树；读操作主要依赖 `volatile` 保证可见性，写操作优先 CAS，失败或发生冲突时对桶头使用 `synchronized` 加锁。
+JDK 7 和 JDK 8 的实现差异比较大：JDK 7 的核心是 **Segment 分段锁**，JDK 8 则取消 Segment，改成 **CAS + `synchronized` 锁桶头节点**。
 
 | 版本 | 核心结构 | 并发控制 |
 |---|---|---|
-| JDK 7 | Segment + HashEntry | 分段锁 |
-| JDK 8 | Node 数组 + 链表/红黑树 | CAS + `synchronized` 桶级锁 |
+| JDK 7 | `Segment[]` + `HashEntry[]` + 链表 | 分段锁，一个 Segment 一把锁 |
+| JDK 8 | `Node[]` + 链表/红黑树 | CAS + `synchronized` 锁桶头 |
 
-对于读操作，ConcurrentHashMap 使用了 `volatile` 变量来保证内存可见性。
+#### JDK 7：Segment 分段锁
 
-对于写操作，ConcurrentHashMap 优先使用 CAS 尝试插入，如果成功就直接返回；否则使用 `synchronized` 代码块进行加锁处理。
+JDK 7 的 `ConcurrentHashMap` 可以理解成：外层是多个 `Segment`，每个 `Segment` 里面又维护一个小的哈希表。`Segment` 本身继承 `ReentrantLock`，所以写操作不是锁整张表，而是锁住其中一个 Segment。
 
-参考：[为什么 ConcurrentHashMap 比 Hashtable 效率高（补充）](https://javabetter.cn/sidebar/sanfene/javathread.html#_50-%E4%B8%BA%E4%BB%80%E4%B9%88-concurrenthashmap-%E6%AF%94-hashtable-%E6%95%88%E7%8E%87%E9%AB%98-%E8%A1%A5%E5%85%85)
+```text
+ConcurrentHashMap
+ └── Segment[]
+      ├── Segment 0 -> HashEntry[] -> 链表
+      ├── Segment 1 -> HashEntry[] -> 链表
+      └── Segment 2 -> HashEntry[] -> 链表
+```
+
+查找一个 key 时，会先根据 hash 定位到哪个 `Segment`，再在这个 Segment 内部的 `HashEntry[]` 中定位桶位置。不同 Segment 之间可以并发写，所以比 `Hashtable` 整张表加锁效率高。
+
+- **读操作**：大多数情况下不加锁，依赖 `volatile` 保证 `HashEntry` 的 value、next 等字段可见。
+- **写操作**：先定位 Segment，然后对这个 Segment 加锁，只阻塞同一个 Segment 内的写操作。
+- **并发度**：默认并发级别常说是 16，可以粗略理解为最多支持 16 个 Segment 级别的并发写。
+- **扩容**：不是整张 Map 一起扩容，而是某个 Segment 内部的数组单独扩容。
+
+#### JDK 8：CAS + synchronized
+
+JDK 8 去掉了 Segment，结构更接近 `HashMap`：数组 + 链表 + 红黑树。插入时，如果桶为空，优先用 CAS 放入新节点；如果桶不为空，就对桶头节点使用 `synchronized`，只锁当前桶。链表过长时会转成红黑树。
+
+```text
+ConcurrentHashMap
+ └── Node[]
+      ├── 桶 0 -> 链表/红黑树
+      ├── 桶 1 -> 链表/红黑树
+      └── 桶 2 -> 链表/红黑树
+```
+
+对于读操作，JDK 8 主要通过 `volatile` 变量来保证内存可见性。对于写操作，JDK 8 优先使用 CAS 尝试插入；如果失败或发生哈希冲突，再使用 `synchronized` 锁住桶头处理。
+
 
 **为什么需要它**：`HashMap` 线程不安全，`Hashtable` 锁粒度太粗，`ConcurrentHashMap` 在安全和性能之间做了更好的平衡。
 
