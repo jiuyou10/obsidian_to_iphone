@@ -14,6 +14,40 @@ jvm内存区域
 对于[静态方法](https://javabetter.cn/oo/static.html)，由于不需要访问实例对象 this，因此在局部变量表中不会有任何变量。
 
 对于非静态方法，即使是一个完全空的方法，局部变量表中也会有一个用于存储 this 引用的变量。this 引用指向当前实例对象，在方法调用时被隐式传入。
+
+java内存，堆栈方法区，以及变量/静态变量都存在什么地方
+对象创建的过程以及销毁
+堆分配内存的方式，分配空间时堆会抢占吗
+
+对象的内存布局是由 Java 虚拟机规范定义的，但具体的实现细节各有不同，如 HotSpot 和 OpenJ9 就不一样。
+
+就拿我们常用的 HotSpot 来说吧。对象在内存中包括三部分：对象头、实例数据和对齐填充
+
+堆的内存分区
+新生代的区域，以及对象什么时候会进入老年代
+#### [大对象如何判断？](https://javabetter.cn/sidebar/sanfene/jvm.html#%E5%A4%A7%E5%AF%B9%E8%B1%A1%E5%A6%82%E4%BD%95%E5%88%A4%E6%96%AD)
+
+大对象是指占用内存较大的对象，如大数组、长字符串等。
+
+```
+int[] array = new int[1000000];
+String str = new String(new char[1000000]);
+```
+
+其大小由 JVM 参数 `-XX:PretenureSizeThreshold` 控制，但在 JDK 8 中，默认值为 0，也就是说默认情况下，对象仅根据 GC 存活的次数来判断是否进入老年代。
+
+![二哥的 Java 进阶之路：PretenureSizeThreshold](https://cdn.paicoding.com/stutymore/jvm-20250113102243.png)
+![[Pasted image 20260512154136.png]]
+G1 垃圾收集器中，大对象会直接分配到 HUMONGOUS 区域。当对象大小超过一个 Region 容量的 50% 时，会被认为是大对象。
+JVM 进行垃圾回收的过程中，会涉及到对象的移动，为了保证对象引用在移动过程中不被修改，必须暂停所有的用户线程，像这样的停顿，我们称之为`Stop The World`。简称 STW。
+
+#### [如何暂停线程呢？](https://javabetter.cn/sidebar/sanfene/jvm.html#%E5%A6%82%E4%BD%95%E6%9A%82%E5%81%9C%E7%BA%BF%E7%A8%8B%E5%91%A2)
+
+JVM 会使用一个名为安全点（Safe Point）的机制来确保线程能够被安全地暂停，其过程包括四个步骤：
+
+
+
+
 ### 内存泄漏可能由哪些原因导致？
 
 
