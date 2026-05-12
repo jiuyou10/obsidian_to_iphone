@@ -71,6 +71,7 @@ Runnable runnable = new Runnable() {
         int result = 2 + 2;
     }
 };
+//注意这里不要直接写runnable.run();这只是普通方法调用，不会创建新的线程去执行runnable
 new Thread(runnable).start();
 
 // 3. Callable + FutureTask：任务有返回值
