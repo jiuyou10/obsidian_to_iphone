@@ -55,37 +55,54 @@ Java 常见创建方式有四种：继承 `Thread`、实现 `Runnable`、实现 
 简单例子：
 
 ```java
-// 1. 继承 Thread
+// 1. 继承 Thread：把任务写进 run 方法
 class MyThread extends Thread {
     @Override
     public void run() {
-        System.out.println("继承 Thread");
+        int result = 1 + 1;
     }
 }
 new MyThread().start();
 
-// 2. 实现 Runnable
-Runnable runnable = () -> System.out.println("实现 Runnable");
+// 2. 实现 Runnable：只有任务，没有返回值
+Runnable runnable = new Runnable() {
+    @Override
+    public void run() {
+        int result = 2 + 2;
+    }
+};
 new Thread(runnable).start();
 
-// 3. Callable + FutureTask：有返回值
-Callable<Integer> callable = () -> 1 + 1;
+// 3. Callable + FutureTask：任务有返回值
+Callable<Integer> callable = new Callable<Integer>() {
+    @Override
+    public Integer call() {
+        return 3 + 3;
+    }
+};
 FutureTask<Integer> futureTask = new FutureTask<>(callable);
 new Thread(futureTask).start();
-System.out.println(futureTask.get());
+Integer result1 = futureTask.get();
 
-// 4. 线程池：生产环境更常用
+// 4. 线程池：把任务交给线程池执行
 ExecutorService pool = Executors.newFixedThreadPool(4);
-Future<Integer> future = pool.submit(() -> 2 + 2);
-System.out.println(future.get());
+Future<Integer> future = pool.submit(new Callable<Integer>() {
+    @Override
+    public Integer call() {
+        return 4 + 4;
+    }
+});
+Integer result2 = future.get();
 pool.shutdown();
 
-// 5. CompletableFuture：异步编排
-CompletableFuture
-        .supplyAsync(() -> 3 + 3)
-        .thenApply(x -> x * 10)
-        .thenAccept(System.out::println);
+// 5. CompletableFuture：异步任务完成后继续处理结果
+CompletableFuture<Integer> cf = CompletableFuture
+        .supplyAsync(() -> 5 + 5)
+        .thenApply(x -> x * 10);
+Integer result3 = cf.get();
 ```
+
+补充：`() ->` 是 Lambda 简写，比如 `() -> 5 + 5` 等价于一个没有参数、返回 `5 + 5` 的 `Callable` 或 `Supplier`。如果刚开始看不习惯，可以先按上面 `new Callable<>() { ... }` 的完整写法理解。
 
 **为什么需要它**：并发程序需要把不同任务拆给不同线程执行，但直接频繁 `new Thread()` 成本高，也容易创建过多线程拖垮系统。
 
