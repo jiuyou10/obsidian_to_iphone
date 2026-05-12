@@ -86,14 +86,23 @@ new Thread(futureTask).start();
 Integer result1 = futureTask.get();
 
 // 4. 线程池：把任务交给线程池执行
+// 创建一个固定 4 个工作线程的线程池，相当于先准备好 4 个工人
 ExecutorService pool = Executors.newFixedThreadPool(4);
+
+// submit 是“提交任务”，线程池会从空闲线程里挑一个来执行 call 方法
+// Future 可以理解成这个任务的“结果凭证”，任务还没执行完时，结果先占个位
 Future<Integer> future = pool.submit(new Callable<Integer>() {
     @Override
     public Integer call() {
+        // 这里才是真正在线程池某个工作线程里执行的任务逻辑
         return 4 + 4;
     }
 });
+
+// get 会阻塞等待：如果任务还没算完，当前线程就在这里等；算完后拿到返回值
 Integer result2 = future.get();
+
+// 关闭线程池：不再接收新任务，但会把已经提交的任务执行完
 pool.shutdown();
 
 // 5. CompletableFuture：异步任务完成后继续处理结果
@@ -323,21 +332,70 @@ synchronized (this) {
 
 ### `synchronized` 和 `ReentrantLock` 的区别
 
-**一句话定义**：`synchronized` 是 JVM 内置锁，`ReentrantLock` 是 JUC 提供的显式可重入锁。
+**一句话定义**：`synchronized` 是 Java 关键字，可以加在方法或代码块上；`ReentrantLock` 是 JUC 里的锁对象，只能在代码里显式调用 `lock()` 和 `unlock()`。
 
-二者都能保证互斥和可见性，但 `ReentrantLock` 功能更丰富，比如支持公平锁、可中断获取锁、超时尝试获取锁、多个 `Condition` 条件队列。`synchronized` 写法更简单，退出代码块自动释放锁，不容易忘记释放。
+`synchronized` 的锁由 JVM 管理，进入同步区域自动加锁，退出同步区域自动释放锁。它可以修饰实例方法、静态方法，也可以修饰代码块；不同写法锁住的对象不一样。`ReentrantLock` 则需要自己创建锁对象，并且必须在 `finally` 里释放，否则容易因为异常导致锁永远不释放。
 
 | 对比 | `synchronized` | `ReentrantLock` |
 |---|---|---|
-| 实现层面 | JVM 内置 | Java 代码，基于 AQS |
-| 释放方式 | 自动释放 | 必须 `finally unlock()` |
-| 公平锁 | 不支持手动设置 | 支持 |
-| 可中断/超时获取 | 不灵活 | 支持 |
-| 条件队列 | 一个对象等待队列 | 可创建多个 `Condition` |
+| 本质 | Java 关键字，JVM 内置锁 | Java 类，基于 AQS 实现 |
+| 加在哪里 | 方法上、静态方法上、代码块上 | 只能在代码里调用 `lock()` / `unlock()` |
+| 释放方式 | 代码执行完或异常退出时自动释放 | 必须手动 `unlock()`，通常写在 `finally` |
+| 是否可重入 | 是 | 是 |
+| 是否支持公平锁 | 不支持手动指定 | 支持公平/非公平 |
+| 是否支持中断等待锁 | 不支持 | 支持 `lockInterruptibly()` |
+| 是否支持尝试/超时加锁 | 不支持 | 支持 `tryLock()` |
+| 条件队列 | 一个对象对应一个等待队列 | 可创建多个 `Condition` |
 
-**为什么需要它**：不同并发场景对锁的能力要求不一样。
+`synchronized` 加在哪里，锁对象也不同：
 
-**什么时候用**：普通同步优先 `synchronized`；需要复杂等待条件、公平性或可中断锁时用 `ReentrantLock`。
+```java
+class Service {
+    // 1. 加在实例方法上：锁的是当前对象 this
+    public synchronized void method1() {
+    }
+
+    // 2. 加在静态方法上：锁的是类对象 Service.class
+    public static synchronized void method2() {
+    }
+
+    // 3. 加在代码块上：锁的是括号里指定的对象
+    public void method3() {
+        synchronized (this) {
+        }
+    }
+
+    // 4. 也可以显式锁类对象，效果类似 static synchronized
+    public void method4() {
+        synchronized (Service.class) {
+        }
+    }
+}
+```
+
+`ReentrantLock` 的写法是显式加锁和释放锁：
+
+```java
+private final ReentrantLock lock = new ReentrantLock();
+
+public void method() {
+    lock.lock();
+    try {
+        // 临界区
+    } finally {
+        lock.unlock();
+    }
+}
+```
+
+**为什么需要它**：
+
+简单同步用 `synchronized` 更省心；复杂场景需要可中断、超时、公平锁、多个条件队列时，`ReentrantLock` 更灵活。
+
+**什么时候用**：
+
+- 锁逻辑简单：优先用 `synchronized`。
+- 需要 `tryLock()`、`lockInterruptibly()`、公平锁、多个 `Condition`：用 `ReentrantLock`。
 
 ---
 
@@ -513,21 +571,49 @@ Condition notEmpty = lock.newCondition();
 
 ### `sleep` 和 `wait` 的区别
 
-**一句话定义**：`sleep` 是线程休眠方法，`wait` 是对象等待队列方法，核心区别是 `wait` 会释放锁而 `sleep` 不会。
+**一句话定义**：`sleep` 是让当前线程暂停一段时间，`wait` 是让当前线程释放对象锁并进入该对象的等待队列。
 
-`Thread.sleep()` 不要求当前线程持有锁，只是让当前线程进入限时等待；`obj.wait()` 必须在 `synchronized(obj)` 内调用，因为它要释放并重新竞争这个对象的 monitor。`wait` 通常要放在 `while` 循环里，防止虚假唤醒或条件变化。
+`Thread.sleep()` 是 `Thread` 的静态方法，不要求当前线程先拿到某个对象锁；如果它在 `synchronized` 里面执行，睡眠期间也不会释放已经持有的锁。`obj.wait()` 是 `Object` 的方法，必须在 `synchronized(obj)` 里面调用，因为调用它的前提是当前线程已经持有 `obj` 的 monitor 锁；调用后线程会释放这把锁，进入 `obj` 的等待队列。
 
 | 对比 | `sleep` | `wait` |
 |---|---|---|
 | 所属类 | `Thread` | `Object` |
-| 是否释放锁 | 否 | 是 |
-| 是否必须持有锁 | 否 | 是 |
-| 唤醒方式 | 时间到或中断 | `notify/notifyAll`、中断、超时 |
+| 调用前是否必须获取锁 | 不需要 | 必须先持有对应对象的锁 |
+| 调用后是否释放锁 | 不释放锁 | 会释放当前对象锁 |
+| 醒来后是否要重新抢锁 | 不涉及重新抢锁；如果原来持有锁，醒来后继续持有 | 需要重新竞争锁，抢到锁后才从 `wait` 后面继续执行 |
+| 进入的状态 | `TIMED_WAITING` | `WAITING` 或 `TIMED_WAITING` |
+| 唤醒方式 | 时间到、被 `interrupt` | `notify/notifyAll`、被 `interrupt`、超时 |
+| 主要用途 | 单纯暂停一会儿 | 等待某个共享条件变化 |
 
-**为什么需要它**：二者都会让线程暂停，但语义完全不同，混用容易导致锁迟迟不释放。
+简单理解：`sleep` 像是“我拿着锁睡一会儿，时间到了继续干”；`wait` 像是“条件不满足，我先把锁让出来，等别人改完条件再叫醒我”。注意，`notify()` 只是把等待线程从等待队列叫醒，被叫醒的线程还要重新抢到锁，才能真正继续执行。
 
-**什么时候用**：定时暂停用 `sleep`；等待共享条件变化用 `wait/notify` 或更推荐的并发工具。
+```java
+Object lock = new Object();
 
+// sleep：不释放 lock，其他线程进不来 synchronized(lock)
+synchronized (lock) {
+    Thread.sleep(1000);
+    // 睡醒后继续持有 lock，接着往下执行
+}
+
+// wait：释放 lock，等待别人 notify/notifyAll
+synchronized (lock) {
+    while (!condition) {
+        lock.wait();
+        // 被唤醒后，不是立刻执行到这里；要先重新抢到 lock
+    }
+}
+
+// notify：唤醒等待 lock 的线程，但当前线程退出 synchronized 后，锁才真正让出来
+synchronized (lock) {
+    condition = true;
+    lock.notifyAll();
+}
+```
+
+**为什么需要它**：二者都会让线程暂停，但语义完全不同；`sleep` 解决“暂停多久”，`wait` 解决“条件不满足时如何释放锁并等待”。
+
+**什么时候用**：定时暂停用 `sleep`；等待共享条件变化用 `wait/notify` 或更推荐的 `Condition`、`BlockingQueue` 等并发工具。
 ---
 
 ### `Hashtable` 底层
